@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Minha semana</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#ffffff; --surface:#ffffff; --ink:#14213d; --muted:#5b6b86; --line:#d3dbe8;
+  --accent:#2748d8; --accent-soft:#e3e9fd; --danger:#c0392b;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+.d0{--c:#2748d8;--c-soft:#e6ebfd}
+.d1{--c:#c2410c;--c-soft:#ffeede}
+.d2{--c:#15803d;--c-soft:#e2f5e8}
+.d3{--c:#7e22ce;--c-soft:#f1e6fb}
+.d4{--c:#be185d;--c-soft:#fde6f0}
+.d5{--c:#0e7490;--c-soft:#def3f8}
+.d6{--c:#b91c1c;--c-soft:#fde5e5}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Bricolage Grotesque",system-ui,-apple-system,"Segoe UI",sans-serif;line-height:1.45}
+main{max-width:760px;margin:0 auto;padding:28px 16px 56px}
+h1{font-size:clamp(2rem,6vw,3rem);font-weight:800;letter-spacing:-.03em;margin:0 0 4px}
+.sub{color:var(--muted);margin:0 0 24px}
+.day{background:var(--surface);border:1px solid var(--line);border-radius:14px;margin-bottom:14px;overflow:hidden}
+.day.today{border-color:var(--ink)}
+.day-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line)}
+.day-head h2{font-size:1.15rem;font-weight:700;margin:0;color:var(--c)}
+.badge{font-size:.78rem;background:var(--ink);color:#fff;border-radius:99px;padding:2px 9px;margin-left:8px;font-weight:600}
+.items{padding:6px 10px}
+.row{display:grid;grid-template-columns:auto auto 1fr auto;gap:8px;align-items:center;padding:6px}
+.row .sep{color:var(--muted)}
+input{font:inherit;color:var(--ink);background:transparent;border:1px solid transparent;border-radius:8px;padding:7px 8px;min-width:0}
+input:hover{border-color:var(--line)}
+input:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+input[type=time]{width:6.6rem}
+.row.bad input[type=time]{border-color:var(--danger)}
+.row .del{background:none;border:0;color:var(--muted);cursor:pointer;font-size:1.2rem;border-radius:8px;width:34px;height:34px}
+.row .del:hover{color:var(--danger);background:#f1f3f7}
+.empty{color:var(--muted);padding:10px 16px;margin:0}
+.add{background:#f1f3f7;color:var(--ink);border:0;border-radius:8px;padding:7px 12px;font:inherit;font-weight:600;cursor:pointer}
+.add:hover{filter:brightness(.97)}
+.warn{color:var(--danger);font-size:.82rem;padding:0 16px 8px;margin:0}
+@media (max-width:520px){
+  main{padding:20px 12px 40px}
+  .row{grid-template-columns:1fr auto 1fr auto!important;gap:8px;padding:10px 4px;border-bottom:1px solid var(--line)}
+  .row:last-child{border-bottom:0}
+  .row .title{grid-column:1 / -1;grid-row:2}
+  .row .del{grid-column:4;grid-row:1;justify-self:end;width:44px;height:44px}
+  input{font-size:16px;padding:10px;border-color:var(--line)}
+  input[type=time]{width:100%}
+  .add{padding:10px 14px}
+  .tools button{padding:10px 14px}
+}
+.tools{display:flex;gap:10px;margin-top:8px}
+.tools button{background:none;border:1px solid var(--line);color:var(--muted);border-radius:8px;padding:7px 12px;font:inherit;cursor:pointer}
+.tools button:hover{color:var(--ink)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<main>
+  <h1>Minha semana</h1>
+  <p class="sub">Clique em qualquer horário ou texto para ajustar. Tudo fica salvo neste navegador.</p>
+  <div id="days"></div>
+  <div class="tools"><button id="reset" type="button">Restaurar exemplo</button></div>
+</main>
+<script>
+var NAMES=["Segunda-feira","Terça-feira","Quarta-feira","Quinta-feira","Sexta-feira","Sábado","Domingo"];
+var KEY="agenda-semanal-v1";
+var state;
+
+function seed(){
+  var d=[[],[],[],[],[],[],[]];
+  d[0].push({id:uid(),start:"11:00",end:"12:00",title:"Compromissos"});
+  return d;
+}
+function uid(){return Math.random().toString(36).slice(2,9)}
+function load(){
+  try{var raw=localStorage.getItem(KEY);if(raw){var p=JSON.parse(raw);if(Array.isArray(p)&&p.length===7)return p}}catch(e){}
+  return seed();
+}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){}}
+function sortDay(i){state[i].sort(function(a,b){return (a.start||"99:99").localeCompare(b.start||"99:99")})}
+
+function el(tag,cls,text){var e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;return e}
+
+function render(){
+  var root=document.getElementById("days");root.innerHTML="";
+  var today=(new Date().getDay()+6)%7;
+  state.forEach(function(items,i){
+    var day=el("section","day d"+i+(i===today?" today":""));
+    var head=el("div","day-head");
+    var h=el("h2",null,NAMES[i]);
+    if(i===today)h.appendChild(el("span","badge","hoje"));
+    var add=el("button","add","+ Adicionar");add.type="button";
+    add.onclick=function(){state[i].push({id:uid(),start:"09:00",end:"10:00",title:""});save();render();
+      var inputs=document.querySelectorAll("#days .day:nth-child("+(i+1)+") .title input");
+      var last=inputs[inputs.length-1];if(last)last.focus();};
+    head.appendChild(h);head.appendChild(add);day.appendChild(head);
+
+    if(!items.length){day.appendChild(el("p","empty","Nada marcado. Use “Adicionar” para criar um compromisso."))}
+    else{
+      var box=el("div","items");
+      items.forEach(function(it){
+        var row=el("div","row"+(it.end&&it.start&&it.end<=it.start?" bad":""));
+        var s=el("input");s.type="time";s.value=it.start;s.setAttribute("aria-label","Início");
+        var sep=el("span","sep","às");
+        var e=el("input");e.type="time";e.value=it.end;e.setAttribute("aria-label","Fim");
+        var tw=el("div","title");var t=el("input");t.type="text";t.value=it.title;t.placeholder="O que você tem para fazer?";t.setAttribute("aria-label","Descrição");t.style.width="100%";
+        tw.appendChild(t);
+        var del=el("button","del","×");del.type="button";del.setAttribute("aria-label","Remover");
+        s.onchange=function(){it.start=s.value;save();sortDay(i);render()};
+        e.onchange=function(){it.end=e.value;save();render()};
+        t.oninput=function(){it.title=t.value;save()};
+        del.onclick=function(){state[i]=state[i].filter(function(x){return x!==it});save();render()};
+        // ordem: início, às, fim, título, remover
+        row.style.gridTemplateColumns="auto auto auto 1fr auto";
+        row.appendChild(s);row.appendChild(sep);row.appendChild(e);row.appendChild(tw);row.appendChild(del);
+        box.appendChild(row);
+      });
+      day.appendChild(box);
+      if(box.querySelector(".bad"))day.appendChild(el("p","warn","O fim precisa ser depois do início."));
+    }
+    root.appendChild(day);
+  });
+}
+
+document.getElementById("reset").onclick=function(){
+  if(confirm("Apagar tudo e voltar ao exemplo?")){state=seed();save();render()}
+};
+state=load();render();
+</script>
+</body>
+</html>
